@@ -18,5 +18,6 @@ pandas
 
 python-dotenv
 
-streamlit-mic-recorder
 edge-tts
+streamlit-mic-recorder
+groq
