@@ -21,3 +21,7 @@ python-dotenv
 edge-tts
 streamlit-mic-recorder
 groq
+
+torch
+torchvision
+torchaudio
