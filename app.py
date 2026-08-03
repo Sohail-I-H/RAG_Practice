@@ -225,12 +225,41 @@ llm = ChatGroq(
 # Create RAG Chain
 # ---------------------------------------------------------------------------
 
-def create_rag_chain(persona_name: str, retrieved_context: str):
+def create_rag_chain(
+    persona_name: str,
+    retrieved_context: str,
+    language: str
+):
 
     system_instruction = SALES_PROMPTS.get(
         persona_name,
         SALES_PROMPTS["PragyanAI Student Counselor"]
-    ).format(context=retrieved_context)
+    ).format(
+        context=retrieved_context
+    )
+
+    system_instruction += f"""
+
+====================================================
+
+LANGUAGE INSTRUCTION (VERY IMPORTANT)
+
+Always answer ONLY in {language}.
+
+Do NOT mix multiple languages.
+
+If the user asks in another language,
+still answer ONLY in {language}.
+
+If the response contains bullet points,
+keep everything in {language}.
+
+If the response contains numbers,
+only the numbers may remain unchanged.
+
+====================================================
+
+"""
 
     prompt = ChatPromptTemplate.from_messages(
         [
@@ -247,7 +276,11 @@ def create_rag_chain(persona_name: str, retrieved_context: str):
 # Respond Function
 # ---------------------------------------------------------------------------
 
-def respond(message, persona_name):
+def respond(
+    message,
+    persona_name,
+    language
+):
 
     if not message.strip():
         return ""
@@ -265,11 +298,16 @@ def respond(message, persona_name):
         ]
     )
 
-    session_id = f"pragyan_session_{persona_name.replace(' ', '_')}"
+    session_id = (
+        f"pragyan_session_"
+        f"{persona_name.replace(' ','_')}_"
+        f"{language}"
+    )
 
     base_chain = create_rag_chain(
         persona_name,
-        context_str
+        context_str,
+        language
     )
 
     conversational_chain = RunnableWithMessageHistory(
@@ -308,17 +346,53 @@ def clear_chat_history(persona_name):
 # Streamlit Sidebar
 # ---------------------------------------------------------------------------
 
+LANGUAGES = {
+    "English 🇺🇸": ("English", "en-US"),
+    "ಕನ್ನಡ 🇮🇳": ("Kannada", "kn-IN"),
+    "हिन्दी 🇮🇳": ("Hindi", "hi-IN"),
+    "தமிழ் 🇮🇳": ("Tamil", "ta-IN"),
+    "తెలుగు 🇮🇳": ("Telugu", "te-IN"),
+    "മലയാളം 🇮🇳": ("Malayalam", "ml-IN"),
+    "ગુજરાતી 🇮🇳": ("Gujarati", "gu-IN"),
+    "বাংলা 🇮🇳": ("Bengali", "bn-IN"),
+    "ਪੰਜਾਬੀ 🇮🇳": ("Punjabi", "pa-IN"),
+    "मराठी 🇮🇳": ("Marathi", "mr-IN"),
+    "اردو": ("Urdu", "ur"),
+    "Español": ("Spanish", "es-ES"),
+    "Français": ("French", "fr-FR"),
+    "Deutsch": ("German", "de-DE"),
+    "Italiano": ("Italian", "it-IT"),
+    "Português": ("Portuguese", "pt-PT"),
+    "Русский": ("Russian", "ru-RU"),
+    "日本語": ("Japanese", "ja-JP"),
+    "한국어": ("Korean", "ko-KR"),
+    "中文": ("Chinese", "zh-CN")
+}
+
 with st.sidebar:
 
-    st.header("Settings")
+    st.title("⚙️ Settings")
+
+    language_display = st.selectbox(
+        "🌍 Select Language",
+        list(LANGUAGES.keys()),
+        index=0
+    )
+
+    selected_language = LANGUAGES[language_display][0]
+    selected_voice = LANGUAGES[language_display][1]
+
+    st.divider()
 
     persona = st.selectbox(
-        "Select PragyanAI Persona",
+        "👤 Select Persona",
         list(SALES_PROMPTS.keys())
     )
 
+    st.divider()
+
     uploaded_files = st.file_uploader(
-        "Upload Additional PDFs or Excel Sheets",
+        "📄 Upload PDFs / Excel",
         type=["pdf", "xlsx", "xls"],
         accept_multiple_files=True
     )
@@ -327,26 +401,31 @@ with st.sidebar:
 
         with st.spinner("Updating Knowledge Base..."):
 
-            total_docs = load_documents_into_vectorstore(uploaded_files)
+            load_documents_into_vectorstore(uploaded_files)
 
-        st.success(
-            f"Knowledge Base updated successfully with {total_docs} document chunks!"
-        )
+        st.success("✅ Knowledge Base Updated Successfully")
 
     else:
 
-        st.info("Default PragyanAI FAQ loaded.")
+        st.info("📚 Default PragyanAI Knowledge Base Loaded")
 
     st.divider()
 
-    if st.button("🗑️ Clear Memory"):
+    st.subheader("🎤 Voice Assistant")
+
+    st.write(f"**Selected Language:** {selected_language}")
+
+    st.caption("Voice input and output will use this language.")
+
+    st.divider()
+
+    if st.button("🗑️ Clear Conversation", use_container_width=True):
 
         clear_chat_history(persona)
 
         st.session_state.messages = []
 
-        st.success("Chat history cleared!")
-
+        st.success("Conversation Cleared")
 
 # ---------------------------------------------------------------------------
 # Chat Session
@@ -396,7 +475,8 @@ if user_prompt:
 
             answer = respond(
                 user_prompt,
-                persona
+                persona,
+                selected_language
             )
 
             st.markdown(answer)
