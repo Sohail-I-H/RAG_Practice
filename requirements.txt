@@ -17,3 +17,6 @@ openpyxl
 pandas
 
 python-dotenv
+
+streamlit-mic-recorder
+edge-tts
